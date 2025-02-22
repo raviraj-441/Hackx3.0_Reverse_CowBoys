@@ -12,7 +12,7 @@ export default function Navbar() {
     { name: 'Home', href: '/customer', icon: <Home className="w-5 h-5" /> },
     { name: 'Scratch Card', href: '/customer/scratchcards', icon: <Gift className="w-5 h-5" /> },
     { name: 'Orders', href: '/customer/orders', icon: <List className="w-5 h-5" /> },
-    { name: 'Cart', href: '/customer/cart', icon: <ShoppingCart className="w-5 h-5" /> },
+    // { name: 'Cart', href: '/customer/cart', icon: <ShoppingCart className="w-5 h-5" /> },
   ];
 
   return (
