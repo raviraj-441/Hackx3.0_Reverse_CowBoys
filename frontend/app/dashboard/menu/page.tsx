@@ -47,7 +47,7 @@
     // Fetch menu items from API
     const fetchMenuItems = async () => {
       try {
-        const response = await axios.get(`${BASE_URL}/api/menu-for-admin`);
+        const response = await axios.get(`${BASE_URL}/api/menu`);
         console.log("Fetched Data:", response.data); // ✅ Check if data is coming correctly
     
         const formattedData = response.data.map((item: any[]) => ({

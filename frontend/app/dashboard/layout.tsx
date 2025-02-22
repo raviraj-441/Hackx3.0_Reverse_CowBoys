@@ -16,7 +16,7 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Menu", href: "/dashboard/menu", icon: Menu },
   { name: "Orders", href: "/dashboard/orders", icon: Package },
-  { name: "Staff", href: "/dashboard/staff", icon: Users },
+  { name: "Waiter", href: "/dashboard/staff", icon: Users },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
