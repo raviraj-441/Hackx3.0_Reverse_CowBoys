@@ -16,18 +16,21 @@ export default function Navbar() {
   ];
 
   return (
-    <nav className="bg-gray-900 text-white py-3 px-6 shadow-md fixed top-0 left-0 w-full z-50">
-      <div className="container mx-auto flex justify-between items-center">
-        <h1 className="text-xl font-bold text-purple-400">Smart Café</h1>
-        <div className="flex gap-6">
-          {navItems.map((item) => (
-            <Link key={item.name} href={item.href} className={`flex items-center gap-2 text-sm font-medium transition-colors ${pathname === item.href ? 'text-purple-400' : 'text-gray-300 hover:text-white'}`}>
-              {item.icon}
-              {item.name}
-            </Link>
-          ))}
-        </div>
-      </div>
+    <nav className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-gray-900/50 backdrop-blur-lg border border-gray-700/30 shadow-lg rounded-full px-6 py-3 z-50 flex gap-6 items-center">
+      {navItems.map((item) => (
+        <Link 
+          key={item.name} 
+          href={item.href} 
+          className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all text-sm font-medium ${
+            pathname === item.href 
+              ? 'bg-purple-600/70 text-white shadow-md' 
+              : 'text-gray-300 hover:bg-gray-800/40 hover:text-white'
+          }`}
+        >
+          {item.icon}
+          <span className="hidden md:inline">{item.name}</span>
+        </Link>
+      ))}
     </nav>
   );
 }

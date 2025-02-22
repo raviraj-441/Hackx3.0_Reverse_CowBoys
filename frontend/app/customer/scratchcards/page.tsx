@@ -1,24 +1,31 @@
 // app/customer/scratchcards/page.tsx
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import {ScratchCard} from "../components/ScratchCard";
-import { dailyScratchCard } from "../data";
+import { useState, useEffect } from 'react';
+import { ScratchCard } from '../components/ScratchCard';
+import { scratchCards } from '../data';
 
 export default function ScratchCardsPage() {
-  const [scratchCard, setScratchCard] = useState(null);
+  const [currentScratchCard, setCurrentScratchCard] = useState(null);
+  const [showScratchCard, setShowScratchCard] = useState(false);
 
   useEffect(() => {
-    setScratchCard(dailyScratchCard); // Get daily scratch card
+    if (!currentScratchCard) {
+      const randomCard = scratchCards[Math.floor(Math.random() * scratchCards.length)];
+      setCurrentScratchCard(randomCard);
+      setShowScratchCard(true);
+    }
   }, []);
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold text-white mb-4">Your Daily Scratch Card</h1>
-      {scratchCard ? (
-        <ScratchCard card={scratchCard} onClaim={() => {}} />
-      ) : (
-        <p className="text-gray-400 text-center">No scratch cards available today.</p>
+    <div className="container mx-auto px-4 mt-10">
+      <h1 className="text-3xl font-bold text-white mb-6">Your Daily Scratch Card</h1>
+      {showScratchCard && currentScratchCard && (
+        <ScratchCard
+          card={currentScratchCard}
+          onClose={() => setShowScratchCard(false)}
+          onClaim={() => setShowScratchCard(false)}
+        />
       )}
     </div>
   );
