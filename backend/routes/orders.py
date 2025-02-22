@@ -15,6 +15,8 @@ class CreateOrderRequest(BaseModel):
     table_numbers: List[str]
     items: List[OrderItem]
     settlement_mode: str
+    
+company_load=False
 
 @router.post("/create_order")
 def create_order(request: CreateOrderRequest):
@@ -37,3 +39,18 @@ def get_allocations():
     db=OrderDatabase()
     result=db.get_allocations()
     return result
+
+@router.get("/toggle_company_load")
+def toggle_company_load():
+    global company_load
+    if(company_load==False):
+        company_load=True
+        return {"message":"Company load enabled"}
+    else:
+        company_load=False
+        return {"message":"Company load disabled"}
+    
+@router.get("/is_company_load")
+def is_company_load():
+    global company_load
+    return {"company_load":company_load}
