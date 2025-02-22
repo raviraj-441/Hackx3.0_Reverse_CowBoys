@@ -20,26 +20,37 @@ export default function CustomerPage() {
   const [currentScratchCard, setCurrentScratchCard] = useState<ScratchCardType | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [orders, setOrders] = useState<CartItem[][]>([]);
+  const [claimedScratchCards, setClaimedScratchCards] = useState<ScratchCardType[]>([]);
+
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!currentScratchCard) { // Prevent multiple scratch cards from appearing
+    loadOrders();
+    loadScratchCards();
+
+    // Check if a scratch card was already assigned today
+    const lastScratchCardDate = localStorage.getItem('lastScratchCardDate');
+    const today = new Date().toDateString();
+
+    if (lastScratchCardDate !== today) {
       const randomCard = scratchCards[Math.floor(Math.random() * scratchCards.length)];
       setCurrentScratchCard(randomCard);
       setShowScratchCard(true);
+      localStorage.setItem('lastScratchCardDate', today); // Store today's date to prevent multiple prompts
     }
   }, []);
 
   const handleUpdateQuantity = (id: number, newQuantity: number) => {
     if (newQuantity < 1) return; // Prevent negative values
-  
+
     setCartItems((prev) =>
       prev.map((item) =>
         item.id === id ? { ...item, quantity: newQuantity } : item
       )
     );
   };
-  
+
 
   const orderSummary: OrderSummary = {
     subtotal: cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
@@ -47,7 +58,7 @@ export default function CustomerPage() {
     total: cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
     points: Math.floor(cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0) / 10), // 1 point per ₹10 spent
   };
-  
+
 
   const filteredItems = menuItems.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -103,28 +114,66 @@ export default function CustomerPage() {
     }
   };
 
+  const saveOrder = (newOrder: CartItem[]) => {
+    const updatedOrders = [...orders, newOrder];
+    setOrders(updatedOrders);
+    localStorage.setItem('orders', JSON.stringify(updatedOrders));
+  };
+
+  const loadOrders = () => {
+    const savedOrders = JSON.parse(localStorage.getItem('orders') || '[]');
+    setOrders(savedOrders);
+  };
+
   const handleCheckout = () => {
-    toast({
-      title: 'Order Placed!',
-      description: 'Your order has been placed successfully.',
-    });
-
-    // Show scratch card after successful order
-    // const randomCard = scratchCards[Math.floor(Math.random() * scratchCards.length)];
-    // setCurrentScratchCard(randomCard);
-    // setShowScratchCard(true);
-
-    setCartItems([]);
-    const earnedPoints = Math.floor(orderSummary.total / 10); // 1 point per ₹10 spent
+    if (cartItems.length === 0) {
+      toast({ title: 'Cart is empty', description: 'Add items before checking out!' });
+      return;
+    }
+    // Save order
+    saveOrder(cartItems);
+    // Assign reward points based on order value
+    const earnedPoints = Math.floor(cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0) / 10);
     setUserPoints((prev) => prev + earnedPoints);
+    // Clear cart after order
+    setCartItems([]);
+    toast({ title: 'Order Placed!', description: 'Your order has been added to the Orders page.' });
+  };
 
+  const loadScratchCards = () => {
+    const savedScratchCards = JSON.parse(localStorage.getItem('scratchCards') || '[]');
+    setClaimedScratchCards(savedScratchCards);
+  };
+
+  const saveScratchCard = (card: ScratchCardType, isClaimed: boolean) => {
+    let savedCards = JSON.parse(localStorage.getItem('scratchCards') || '[]');
+    // Find if the card already exists
+    const existingIndex = savedCards.findIndex((c) => c.id === card.id);
+    if (existingIndex !== -1) {
+      // Update the existing scratch card status
+      savedCards[existingIndex] = { ...card, claimed: isClaimed };
+    } else {
+      // Add new scratch card
+      savedCards.push({ ...card, claimed: isClaimed });
+    }
+
+    localStorage.setItem('scratchCards', JSON.stringify(savedCards));
   };
 
   const handleClaimScratchCard = (card: ScratchCardType) => {
+    saveScratchCard(card, true); // Mark as claimed
+    setClaimedScratchCards((prev) => [...prev, { ...card, claimed: true }]);
     toast({
       title: 'Reward Claimed!',
       description: `${card.description} has been added to your account.`,
     });
+    setShowScratchCard(false);
+    setCurrentScratchCard(null);
+  };
+
+  const handleCloseScratchCard = (card: ScratchCardType) => {
+    saveScratchCard(card, false); // Save as unclaimed
+    setClaimedScratchCards((prev) => [...prev, { ...card, claimed: false }]);
     setShowScratchCard(false);
     setCurrentScratchCard(null);
   };
@@ -176,8 +225,8 @@ export default function CustomerPage() {
               <button
                 onClick={() => setSelectedCategory('all')}
                 className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition-colors ${selectedCategory === 'all'
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                   }`}
               >
                 All Items
@@ -187,8 +236,8 @@ export default function CustomerPage() {
                   key={category.id}
                   onClick={() => setSelectedCategory(category.slug)}
                   className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition-colors ${selectedCategory === category.slug
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                     }`}
                 >
                   {category.name}
@@ -256,20 +305,23 @@ export default function CustomerPage() {
         </section>
 
         {/* Cart */}
-        <Cart
-          items={cartItems}
-          summary={orderSummary}
-          onRemoveItem={handleRemoveFromCart}
-          onCheckout={handleCheckout}
-          onUpdateQuantity={handleUpdateQuantity} // ✅ Now passing the function
-        />
+        <div className="min-h-[200px]">
+          <Cart
+            items={cartItems}
+            summary={orderSummary}
+            onRemoveItem={handleRemoveFromCart}
+            onCheckout={handleCheckout}
+            onUpdateQuantity={handleUpdateQuantity}
+          />
+        </div>
+
 
         {/* Scratch Card */}
         <AnimatePresence>
           {showScratchCard && currentScratchCard && (
             <ScratchCard
               card={currentScratchCard}
-              onClose={() => setShowScratchCard(false)}
+              onClose={() => handleCloseScratchCard(currentScratchCard)} // Now saving unclaimed cards
               onClaim={handleClaimScratchCard}
             />
           )}
