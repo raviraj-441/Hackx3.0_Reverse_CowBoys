@@ -58,25 +58,64 @@ export default function AddItemPage() {
     setImageFile(file)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    // Handle image upload logic
-    let finalImage = formData.imageUrl
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+  
+    let finalImage = formData.imageUrl;
+  
     if (imageFile) {
-      // Convert file to a base64 string (or send to an API)
-      const reader = new FileReader()
-      reader.readAsDataURL(imageFile)
-      reader.onloadend = () => {
-        finalImage = reader.result as string
-        console.log({ ...formData, image: finalImage })
-        router.push("/menu")
-      }
+      const reader = new FileReader();
+      reader.readAsDataURL(imageFile);
+      reader.onloadend = async () => {
+        finalImage = reader.result as string;
+        await submitForm(finalImage);
+      };
     } else {
-      console.log({ ...formData, image: finalImage })
-      router.push("/menu")
+      await submitForm(finalImage);
     }
-  }
+  };
+  
+  const submitForm = async (imageUrl: string) => {
+    const formattedVariations = formData.variations.reduce((acc, variation) => {
+      if (variation.key && variation.value) {
+        acc[variation.key] = parseFloat(variation.value);
+      }
+      return acc;
+    }, {} as Record<string, number>);
+  
+    const payload = {
+      name: formData.name,
+      category: formData.category,
+      sub_category: formData.sub_category,
+      tax_percentage: parseFloat(formData.tax),
+      packaging_charge: parseFloat(formData.packaging_charge),
+      description: formData.description,
+      variations: formattedVariations,
+      image_url: imageUrl,
+    };
+  
+    try {
+      const response = await fetch("http://localhost:8000/api/menu", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+  
+      const data = await response.json();
+  
+      if (!response.ok) {
+        throw new Error(data.detail || "Failed to add menu item");
+      }
+  
+      console.log("Success:", data);
+      router.push("/menu");
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  };
+  
 
   return (
     <Card>
