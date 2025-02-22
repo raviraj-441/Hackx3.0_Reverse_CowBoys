@@ -1,5 +1,5 @@
 // app/customer/layout.tsx
-import { Toaster } from '@/components/ui/sonner';
+import { Toaster } from '@/components/ui/toaster';
 import Navbar from './components/Navbar';
 
 export default function CustomerLayout({

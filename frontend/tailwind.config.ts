@@ -60,6 +60,14 @@ const config: Config = {
           '4': 'hsl(var(--chart-4))',
           '5': 'hsl(var(--chart-5))',
         },
+        steelBlue: '#2B4060',
+        cadetBlue: '#7295B6',
+        powderBlue: '#E1ECF4',
+        jetBlack: '#242424',
+        lightGray: '#EFEFEF',
+      },
+      fontFamily: {
+        sans: ['Montserrat', 'sans-serif'],
       },
       keyframes: {
         'accordion-down': {

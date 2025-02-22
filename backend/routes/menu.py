@@ -43,6 +43,7 @@ async def get_menu_items():
     
     return formatted_items
  
+ 
 
 @router.post("/menu")
 async def add_menu_item(item: AddMenuItem):
@@ -73,6 +74,7 @@ async def edit_menu_item(item: EditMenuItem):
 @router.delete("/menu/{sku}")
 async def delete_menu_item(sku: str):
     """Delete a menu item by SKU."""
+    print(sku)
     response = db.delete_menu_item(sku)
     if "⚠️" in response:
         raise HTTPException(status_code=404, detail=response)
