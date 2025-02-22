@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -19,50 +19,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-const initialOrders = [
-  {
-    id: "#101",
-    Assigned_tables: "Table 1, Table 2",
-    items: [
-      { name: "Latte", status: "Pending" },
-      { name: "Croissant", status: "Ready" },
-    ],
-    price: 8.99,
-    time: "2 mins ago",
-  },
-  {
-    id: "#102",
-    Assigned_tables: "Table 3",
-    items: [
-      { name: "Burger", status: "Preparing" },
-      { name: "Fries", status: "Preparing" },
-      { name: "Coke", status: "Ready" },
-    ],
-    price: 15.99,
-    time: "5 mins ago",
-  },
-  {
-    id: "#103",
-    Assigned_tables: "Table 4",
-    items: [
-      { name: "Pizza", status: "Ready" },
-      { name: "Garlic Bread", status: "Ready" },
-    ],
-    price: 18.99,
-    time: "8 mins ago",
-  },
-  {
-    id: "#104",
-    Assigned_tables: "Table 5",
-    items: [
-      { name: "Caesar Salad", status: "Delivered" },
-      { name: "Iced Tea", status: "Delivered" },
-    ],
-    price: 12.99,
-    time: "15 mins ago",
-  },
-];
-
 const statusColors = {
   Pending: "bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400",
   Preparing: "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400",
@@ -71,16 +27,64 @@ const statusColors = {
 };
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState(initialOrders);
+  const [orders, setOrders] = useState([]);
 
-  const handleUpdateItemStatus = (orderId, itemName, newStatus) => {
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/get_order_management");
+      const data = await response.json();
+      const transformedOrders = transformOrders(data);
+      setOrders(transformedOrders);
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+    }
+  };
+
+  const transformOrders = (data) => {
+    return data.map((order) => {
+      const createdAt = new Date(order.created_at);
+      const now = new Date();
+      const elapsedMinutes = Math.floor((createdAt-now) / 60000); // Convert milliseconds to minutes
+  
+      return {
+        order_id: order.order_id,
+        channel_type: order.channel_type,
+        assigned_table: order.assigned_tables.length > 0 ? order.assigned_tables.join(", ") : "N/A",
+        total_price: order.price,
+        preparing_time: elapsedMinutes, // Add preparing time here
+        items: order.items.map((item) => ({
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          status: "Pending", // Default status
+        })),
+        status: "Pending",
+      };
+    });
+  };
+  
+  const determineOverallStatus = (items) => {
+    const uniqueStatuses = new Set(items.map((item) => item.status));
+    return uniqueStatuses.size === 1 ? [...uniqueStatuses][0] : "Pending";
+  };
+
+  const updateItemStatusFrontend = (orderId, itemName, newStatus) => {
     setOrders((prevOrders) =>
       prevOrders.map((order) =>
-        order.id === orderId
+        order.order_id === orderId
           ? {
               ...order,
               items: order.items.map((item) =>
                 item.name === itemName ? { ...item, status: newStatus } : item
+              ),
+              status: determineOverallStatus(
+                order.items.map((item) =>
+                  item.name === itemName ? { ...item, status: newStatus } : item
+                )
               ),
             }
           : order
@@ -88,20 +92,13 @@ export default function OrdersPage() {
     );
   };
 
-  // Function to determine overall order status
-  const getOrderStatus = (items) => {
-    const uniqueStatuses = [...new Set(items.map((item) => item.status))];
-    return uniqueStatuses.length === 1 ? uniqueStatuses[0] : "Pending";
-  };
-
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Order Management</h2>
+        <Button onClick={fetchOrders}>Refresh Orders</Button>
       </div>
 
-      {/* Order Queue */}
       <Card>
         <CardHeader>
           <CardTitle>Live Order Queue</CardTitle>
@@ -111,66 +108,64 @@ export default function OrdersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Order ID</TableHead>
-                <TableHead>Assigned Tables</TableHead>
+                <TableHead>Assigned Table</TableHead>
                 <TableHead>Items</TableHead>
-                <TableHead>Price</TableHead>
+                <TableHead>Total Price</TableHead>
+                <TableHead>Preparing Time</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Time</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {orders.map((order) => {
-                const orderStatus = getOrderStatus(order.items);
-                return (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-medium">{order.id}</TableCell>
-                    <TableCell>{order.Assigned_tables}</TableCell>
-                    <TableCell>
-                      <ul>
-                        {order.items.map((item) => (
-                          <li key={item.name} className="flex items-center gap-2">
-                            {item.name}
-                            <span
-                              className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                                statusColors[item.status]
-                              }`}
-                            >
-                              {item.status}
-                            </span>
-                            <Select
-                              onValueChange={(value) =>
-                                handleUpdateItemStatus(order.id, item.name, value)
-                              }
-                              defaultValue={item.status}
-                            >
-                              <SelectTrigger className="w-[120px]">
-                                <SelectValue placeholder="Update" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Pending">Pending</SelectItem>
-                                <SelectItem value="Preparing">Preparing</SelectItem>
-                                <SelectItem value="Ready">Ready</SelectItem>
-                                <SelectItem value="Delivered">Delivered</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </li>
-                        ))}
-                      </ul>
-                    </TableCell>
-                    <TableCell>${order.price}</TableCell>
-                    <TableCell>
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                          statusColors[orderStatus]
-                        }`}
-                      >
-                        {orderStatus}
-                      </span>
-                    </TableCell>
-                    <TableCell>{order.time}</TableCell>
-                  </TableRow>
-                );
-              })}
+              {orders.map((order) => (
+                <TableRow key={order.order_id}>
+                  <TableCell className="font-medium">#{order.order_id}</TableCell>
+                  <TableCell>{order.assigned_table}</TableCell>
+                  <TableCell>
+                    <ul>
+                      {order.items.map((item, index) => (
+                        <li key={index} className="flex justify-between items-center">
+                          <span>{item.name} (x{item.quantity}) - ${item.price}</span>
+                          <Select
+                            value={item.status}
+                            onValueChange={(newStatus) =>
+                              updateItemStatusFrontend(order.order_id, item.name, newStatus)
+                            }
+                          >
+                            <SelectTrigger className="w-[120px]">
+                              <SelectValue placeholder="Select Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Pending">Pending</SelectItem>
+                              <SelectItem value="Preparing">Preparing</SelectItem>
+                              <SelectItem value="Ready">Ready</SelectItem>
+                              <SelectItem value="Delivered">Delivered</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </li>
+                      ))}
+                    </ul>
+                  </TableCell>
+                  <TableCell>${order.total_price}</TableCell>
+<TableCell>
+  {order.status === "Preparing" || order.status === "Delivered" ? (
+    <>
+      {order.preparing_time} min
+      {order.status === "Delivered" && " ✅"}
+    </>
+  ) : (
+    "N/A"
+  )}
+</TableCell>
+
+                  <TableCell>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${statusColors[order.status]}`}
+                    >
+                      {order.status}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </CardContent>

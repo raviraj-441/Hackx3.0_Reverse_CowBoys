@@ -54,3 +54,10 @@ def toggle_company_load():
 def is_company_load():
     global company_load
     return {"company_load":company_load}
+
+
+@router.get("/get_order_management")
+def get_orders():
+    db=OrderDatabase()
+    result=db.get_order_management()
+    return result

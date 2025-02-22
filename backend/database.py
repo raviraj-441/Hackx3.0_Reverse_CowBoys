@@ -290,8 +290,40 @@ class OrderDatabase:
         #     for row in allocations
         # ]
         return allocations
+    
+    def get_order_management(self):
+        query = """
+SELECT 
+    o.id AS order_id,
+    o.created_at,
+    o.channel_type,
+    jsonb_agg(
+        jsonb_build_object(
+            'name', m.name,
+            'sku', i->>'sku',
+            'price', (i->>'price')::numeric,
+            'quantity', (i->>'quantity')::int
+        )
+    ) AS items,
+    o.price,
+    o.settlement_mode,
+    o.waiter_id,
+    o.table_no->'tables' AS assigned_tables
+FROM orders o,
+LATERAL jsonb_array_elements(o.items) AS i
+JOIN menu m ON m.sku = i->>'sku'
+GROUP BY o.id, o.created_at, o.channel_type, o.price, o.settlement_mode, o.waiter_id, o.table_no;
+
+
+        """
+        self.cursor.execute(query)
+        result=self.cursor.fetchall()
+        return result
+    
+
 
 
     def close(self):
         self.cursor.close()
         self.conn.close()
+

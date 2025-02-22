@@ -11,11 +11,55 @@ import { useRouter } from "next/navigation";
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    router.push("/customer");
+    setError(null);
+    setLoading(true);
+
+    try {
+      const response = await fetch("http://localhost:8000/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email, password: form.password }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "Authentication failed");
+
+      const { role } = data.user; // Extract role from response
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      // Redirect based on role
+      switch (role) {
+        case "customer":
+          router.push("/customer");
+          break;
+        case "kitchen":
+          router.push("/kitchen");
+          break;
+        case "waiter":
+          router.push("/waiter");
+          break;
+        case "admin":
+          router.push("/admin/dashboard");
+          break;
+        default:
+          throw new Error("Invalid role");
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -29,6 +73,8 @@ export default function AuthPage() {
         </CardHeader>
 
         <CardContent>
+          {error && <p className="text-red-500 text-center">{error}</p>}
+
           <motion.form
             key={isLogin ? "login" : "signup"}
             initial={{ opacity: 0, x: 50 }}
@@ -41,32 +87,28 @@ export default function AuthPage() {
             {!isLogin && (
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
-                <Input id="name" placeholder="John Doe" required />
+                <Input id="name" name="name" placeholder="John Doe" onChange={handleChange} required />
               </div>
             )}
 
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="john@example.com" required />
+              <Input id="email" name="email" type="email" placeholder="john@example.com" onChange={handleChange} required />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" required />
+              <Input id="password" name="password" type="password" onChange={handleChange} required />
             </div>
 
-            <Button type="submit" className="w-full">
-              {isLogin ? "Log In" : "Sign Up"}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Processing..." : isLogin ? "Log In" : "Sign Up"}
             </Button>
           </motion.form>
 
           <div className="mt-4 text-center text-sm">
             {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-primary hover:underline"
-            >
+            <button type="button" onClick={() => setIsLogin(!isLogin)} className="text-primary hover:underline">
               {isLogin ? "Sign up" : "Log in"}
             </button>
           </div>

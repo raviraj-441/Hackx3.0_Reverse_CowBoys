@@ -13,10 +13,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Menu", href: "/dashboard/menu", icon: Menu },
-  { name: "Orders", href: "/dashboard/orders", icon: Package },
-  { name: "Waiter", href: "/dashboard/staff", icon: Users },
+  { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
+  { name: "Menu", href: "/admin/dashboard/menu", icon: Menu },
+  { name: "Orders", href: "/admin/dashboard/orders", icon: Package },
+  { name: "Waiter", href: "/admin/dashboard/staff", icon: Users },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
@@ -35,7 +35,7 @@ export default function DashboardLayout({
           <div className="flex h-16 items-center">
             <Link href="/dashboard" className="flex items-center gap-2">
               <Coffee className="h-6 w-6" />
-              <span className="text-lg font-semibold">Smart Café</span>
+              <span className="text-lg font-semibold">Smart CafÃ©</span>
             </Link>
           </div>
           <nav className="flex flex-1 flex-col">
