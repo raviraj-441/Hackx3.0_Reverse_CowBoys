@@ -8,7 +8,7 @@ router = APIRouter()
 # Database instance
 db = Database()
 
-@router.get("/menu", response_model=list)
+@router.get("/menu-for-admin", response_model=list)
 async def get_menu_items():
     """Fetch all menu items."""
     menu_items = db.get_all_menu_items()
@@ -63,6 +63,7 @@ async def edit_menu_item(item: EditMenuItem):
 @router.delete("/menu/{sku}")
 async def delete_menu_item(sku: str):
     """Delete a menu item by SKU."""
+    print(sku)
     response = db.delete_menu_item(sku)
     if "⚠️" in response:
         raise HTTPException(status_code=404, detail=response)

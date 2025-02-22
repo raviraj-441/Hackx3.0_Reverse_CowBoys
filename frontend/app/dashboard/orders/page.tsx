@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -18,36 +19,36 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-const orders = [
+const initialOrders = [
   {
     id: "#101",
-    customer: "John Doe",
+    Assigned_tables: "Table 1, Table 2",
     items: ["Latte", "Croissant"],
-    total: 8.99,
+    price: 8.99,
     status: "Pending",
     time: "2 mins ago",
   },
   {
     id: "#102",
-    customer: "Sarah Smith",
+    Assigned_tables: "Table 1, Table 2",
     items: ["Burger", "Fries", "Coke"],
-    total: 15.99,
+    price: 15.99,
     status: "Preparing",
     time: "5 mins ago",
   },
   {
     id: "#103",
-    customer: "Mike Johnson",
+    Assigned_tables: "Table 1, Table 2",
     items: ["Pizza", "Garlic Bread"],
-    total: 18.99,
+    price: 18.99,
     status: "Ready",
     time: "8 mins ago",
   },
   {
     id: "#104",
-    customer: "Emily Brown",
+    Assigned_tables: "Table 1, Table 2",
     items: ["Caesar Salad", "Iced Tea"],
-    total: 12.99,
+    price: 12.99,
     status: "Delivered",
     time: "15 mins ago",
   },
@@ -61,6 +62,17 @@ const statusColors = {
 };
 
 export default function OrdersPage() {
+  const [orders, setOrders] = useState(initialOrders);
+  const [selectedStatus, setSelectedStatus] = useState({});
+
+  const handleUpdateStatus = (orderId, newStatus) => {
+    setOrders((prevOrders) =>
+      prevOrders.map((order) =>
+        order.id === orderId ? { ...order, status: newStatus } : order
+      )
+    );
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -90,21 +102,21 @@ export default function OrdersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Order ID</TableHead>
-                <TableHead>Customer</TableHead>
+                <TableHead>Assigned Tables</TableHead>
                 <TableHead>Items</TableHead>
-                <TableHead>Total</TableHead>
+                <TableHead>Price</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Time</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {orders.map((order) => (
                 <TableRow key={order.id}>
                   <TableCell className="font-medium">{order.id}</TableCell>
-                  <TableCell>{order.customer}</TableCell>
+                  <TableCell>{order.Assigned_tables}</TableCell>
                   <TableCell>{order.items.join(", ")}</TableCell>
-                  <TableCell>${order.total}</TableCell>
+                  <TableCell>${order.price}</TableCell>
                   <TableCell>
                     <span
                       className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
@@ -116,9 +128,20 @@ export default function OrdersPage() {
                   </TableCell>
                   <TableCell>{order.time}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="outline" size="sm">
-                      Update Status
-                    </Button>
+                    <Select
+                      onValueChange={(value) => handleUpdateStatus(order.id, value)}
+                      defaultValue={order.status}
+                    >
+                      <SelectTrigger className="w-[120px]">
+                        <SelectValue placeholder="Update" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Pending">Pending</SelectItem>
+                        <SelectItem value="Preparing">Preparing</SelectItem>
+                        <SelectItem value="Ready">Ready</SelectItem>
+                        <SelectItem value="Delivered">Delivered</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </TableCell>
                 </TableRow>
               ))}
@@ -126,43 +149,6 @@ export default function OrdersPage() {
           </Table>
         </CardContent>
       </Card>
-
-      {/* Order Statistics */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Average Preparation Time
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">12 minutes</div>
-            <p className="text-xs text-muted-foreground">-2 mins from last week</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Orders in Queue
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">8 orders</div>
-            <p className="text-xs text-muted-foreground">+2 in last hour</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Completed Today
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">45 orders</div>
-            <p className="text-xs text-muted-foreground">90% satisfaction rate</p>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }
