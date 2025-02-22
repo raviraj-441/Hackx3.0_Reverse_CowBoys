@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Coffee, LineChart, Users, Utensils } from "lucide-react";
 import Link from "next/link";
+import { LucideIcon } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -76,7 +77,13 @@ export default function Home() {
   );
 }
 
-function FeatureCard({ icon: Icon, title, description }) {
+interface FeatureCardProps {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+}
+
+function FeatureCard({ icon: Icon, title, description }: FeatureCardProps) {
   return (
     <div className="p-6 rounded-lg bg-card border hover:border-primary/50 transition-colors">
       <Icon className="w-12 h-12 text-primary mb-4" />
