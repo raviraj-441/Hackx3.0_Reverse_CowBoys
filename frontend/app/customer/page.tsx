@@ -148,7 +148,7 @@ export default function CustomerPage() {
   const saveScratchCard = (card: ScratchCardType, isClaimed: boolean) => {
     let savedCards = JSON.parse(localStorage.getItem('scratchCards') || '[]');
     // Find if the card already exists
-    const existingIndex = savedCards.findIndex((c) => c.id === card.id);
+    const existingIndex: number = savedCards.findIndex((c: ScratchCardType) => c.id === card.id);
     if (existingIndex !== -1) {
       // Update the existing scratch card status
       savedCards[existingIndex] = { ...card, claimed: isClaimed };
