@@ -11,7 +11,7 @@ export default function CustomerLayout({
     <>
       <Navbar />
       <main>{children}</main>
-      <Toaster />
+      <Toaster className="z-[9999]"/>
     </>
   );
 }

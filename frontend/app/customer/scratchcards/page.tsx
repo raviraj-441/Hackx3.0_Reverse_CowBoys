@@ -35,7 +35,7 @@ export default function ScratchCardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] pb-10 px-6 pt-24 flex flex-col items-center">
+    <div className="min-h-screen bg-[#0A0A0A] pb-10 px-6 pt-28 flex flex-col items-center">
       {/* Page Header */}
       <div className="flex items-center gap-3 mb-8">
         <Gift className="h-8 w-8 text-purple-400" />

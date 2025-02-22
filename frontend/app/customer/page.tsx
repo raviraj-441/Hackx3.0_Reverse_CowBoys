@@ -196,7 +196,7 @@ export default function CustomerPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <h1 className="text-5xl md:text-6xl font-bold text-white mb-4">
+            <h1 className="text-5xl md:text-6xl font-bold text-white mt-8 mb-4">
               Smart Café
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl">
@@ -221,7 +221,7 @@ export default function CustomerPage() {
                 className="pl-10 bg-gray-800 border-gray-700 text-white"
               />
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0">
+            <div className="flex flex-wrap gap-2 overflow-x-auto pb-2 md:pb-0">
               <button
                 onClick={() => setSelectedCategory('all')}
                 className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition-colors ${selectedCategory === 'all'
@@ -305,7 +305,7 @@ export default function CustomerPage() {
         </section>
 
         {/* Cart */}
-        <div className="min-h-[200px]">
+        <div className="min-h-[50px]">
           <Cart
             items={cartItems}
             summary={orderSummary}

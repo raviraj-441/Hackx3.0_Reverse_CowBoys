@@ -19,7 +19,7 @@ export default function OrdersPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#0A0A0A] px-6 pb-10 pt-24">
+        <div className="min-h-screen bg-[#0A0A0A] px-6 pb-10 pt-28 flex flex-col items-center">
             {/* Header */}
             <div className="flex items-center gap-3 mb-8">
                 <ClipboardList className="h-6 w-6 text-purple-400" />
@@ -27,19 +27,19 @@ export default function OrdersPage() {
             </div>
 
             {orders.length === 0 ? (
-                <div className="flex flex-col items-center justify-center mt-20">
+                <div className="flex flex-col items-center justify-center mt-10 sm:mt-16 lg:mt-24">
                     <PackageCheck className="h-12 w-12 text-gray-500" />
                     <p className="text-gray-400 mt-4 text-lg">You have no orders yet.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-6 w-full max-w-7xl">
                     {orders.map((order, index) => (
                         <motion.div
                             key={index}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.3 }}
-                            className="bg-gray-900/80 backdrop-blur-xl rounded-2xl p-5 border border-gray-700 shadow-lg"
+                            className="bg-gray-900/80 backdrop-blur-xl rounded-2xl p-5 border border-gray-700 shadow-lg min-h-[200px] flex flex-col justify-between"
                         >
                             <h3 className="text-lg font-semibold text-purple-400 mb-3">
                                 Order #{index + 1}
@@ -76,7 +76,7 @@ export default function OrdersPage() {
                         exit={{ opacity: 0, scale: 0.9 }}
                         className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 z-50"
                     >
-                        <div className="bg-gray-900/90 rounded-lg shadow-xl p-6 max-w-md w-full border border-gray-700">
+                        <div className="bg-gray-900/90 rounded-lg shadow-xl p-6 max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl w-full border border-gray-700">
                             <div className="flex justify-between items-center mb-4">
                                 <h2 className="text-xl font-semibold text-white">Order #{selectedOrder.index + 1}</h2>
                                 <button onClick={() => setSelectedOrder(null)} className="text-gray-400 hover:text-white">
