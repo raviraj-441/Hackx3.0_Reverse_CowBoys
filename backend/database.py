@@ -1,10 +1,79 @@
+from pydantic import BaseModel, EmailStr
+import uuid
 import os
 import psycopg2
 import json
 from dotenv import load_dotenv
+from datetime import datetime
+from psycopg2.extras import RealDictCursor
+import bcrypt
 
 # Load environment variables
 load_dotenv()
+
+class UserSignup(BaseModel):
+    name: str
+    email: EmailStr
+    password: str
+    role: str = "customer"
+
+class UserSchema(BaseModel):
+    id: str
+    name: str
+    email: EmailStr
+    password: str
+    role: str
+    created_at: str
+
+    def __init__(self, **data):
+        super().__init__(
+            id=str(uuid.uuid4()),
+            created_at=datetime.utcnow().isoformat(),
+            **data
+        )
+
+class UserDatabase:
+    def __init__(self):
+        self.conn = psycopg2.connect(
+            dbname=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT")
+        )
+        self.cursor = self.conn.cursor(cursor_factory=RealDictCursor)
+
+    def create_user(self, name, email, password, role="customer"):
+        hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+        query = """
+        INSERT INTO employees (id, name, email, password, role, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s) RETURNING id;
+        """
+        user_id = str(uuid.uuid4())
+        created_at = datetime.utcnow().isoformat()
+        self.cursor.execute(query, (user_id, name, email, hashed_password, role, created_at))
+        self.conn.commit()
+        return user_id
+
+    def get_user_by_email(self, email):
+        query = "SELECT * FROM employees WHERE email = %s;"
+        self.cursor.execute(query, (email,))
+        return self.cursor.fetchone()
+
+    def get_user_by_id(self, user_id):
+        query = "SELECT * FROM users WHERE id = %s;"
+        self.cursor.execute(query, (user_id,))
+        return self.cursor.fetchone()
+    
+    def login_user(self, email, password):
+        user = self.get_user_by_email(email)
+        if user and bcrypt.checkpw(password.encode("utf-8"), user["password"].encode("utf-8")):
+            return {"id": user["id"], "name": user["name"], "email": user["email"], "role": user["role"], "created_at": user["created_at"]}
+        return None
+
+    def close(self):
+        self.cursor.close()
+        self.conn.close()
 
 class MenuDatabase:
     def __init__(self):
@@ -114,10 +183,7 @@ class MenuDatabase:
         self.cursor.close()
         self.conn.close()
         
-import psycopg2
-import json
-from datetime import datetime
-from psycopg2.extras import RealDictCursor
+
 
 class OrderDatabase:
     def __init__(self):
@@ -229,8 +295,3 @@ class OrderDatabase:
     def close(self):
         self.cursor.close()
         self.conn.close()
-
-
-
-# Usage Example:
-
