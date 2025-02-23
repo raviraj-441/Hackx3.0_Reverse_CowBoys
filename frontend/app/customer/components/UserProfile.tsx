@@ -45,7 +45,7 @@ export default function UserProfile() {
   };
 
   return (
-    <div className="fixed top-4 right-6 z-50">
+    <div className="fixed top-4 right-6 z-40">
       <div className="relative" ref={dropdownRef}>
         {/* Profile Button */}
         <button

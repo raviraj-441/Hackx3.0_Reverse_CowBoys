@@ -5,16 +5,20 @@ export interface MenuCategory {
 }
 
 export interface MenuItem {
-  id: number;
+  id: string; // Backend provides UUID instead of number
   name: string;
-  description: string;
-  price: number;
+  description: string | null;
   category: string;
-  image: string;
-  available: boolean;
-  variants?: string[];
-  points: number;
+  sub_category?: string;
+  tax_percentage: string;
+  packaging_charge: string;
+  SKU: string;
+  variations: Record<string, number>; // Keeps price mapping as object
+  created_at: string;
+  image_url: string | null;
+  preparation_time: number;
 }
+
 
 export interface RewardItem {
   id: number;
@@ -36,12 +40,12 @@ export interface OrderSummary {
   points: number;
 }
 
-export interface ScratchCard {
-  id: number;
-  type: 'discount' | 'points' | 'freeItem';
+export interface ScratchCardType {
+  id: string;
+  type: string;
   value: number;
   description: string;
-  category?: string; // For category-specific discounts
-  minimumOrder?: number;
-  expiresIn: number; // Hours
+  category: string;
+  minimumOrder: number;
+  expiresIn: number;
 }

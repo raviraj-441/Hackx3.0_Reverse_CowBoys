@@ -4,19 +4,45 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Minus, ShoppingCart } from 'lucide-react';
-import { MenuItem } from '../types';
+// import { MenuItem } from '../types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+// First, let's update the MenuItem interface to match backend response
+interface MenuItem {
+  id: string;
+  name: string;
+  category: string;
+  sub_category: string;
+  tax_percentage: string;
+  packaging_charge: string;
+  SKU: string;
+  variations: {
+    [key: string]: number;
+  };
+  created_at: string;
+  description: string | null;
+  image_url: string | null;
+  preparation_time: number;
+}
+
 interface MenuCardProps {
   item: MenuItem;
-  onAddToCart: (item: MenuItem, quantity: number, variant?: string) => void;
+  onAddToCart: (item: MenuItem, quantity: number, variant: string) => void;
 }
 
 export function MenuCard({ item, onAddToCart }: MenuCardProps) {
   const [quantity, setQuantity] = useState(1);
-  const [variant, setVariant] = useState(item.variants?.[0]);
+  const [selectedVariant, setSelectedVariant] = useState(Object.keys(item.variations)[0]);
+  
+  // Get the price for the selected variant
+  const currentPrice = item.variations[selectedVariant];
+  
+  // Calculate total price including tax and packaging
+  const totalPrice = currentPrice + 
+    (currentPrice * parseFloat(item.tax_percentage) / 100) + 
+    parseFloat(item.packaging_charge);
 
   return (
     <motion.div
@@ -27,27 +53,27 @@ export function MenuCard({ item, onAddToCart }: MenuCardProps) {
     >
       <div className="relative h-64 rounded-t-2xl overflow-hidden">
         <img
-          src={item.image}
+          src={item.image_url || '/placeholder-food.jpg'} // Add a default placeholder image
           alt={item.name}
           className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-        {!item.available && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
-            <Badge variant="destructive" className="text-lg px-4 py-2">Out of Stock</Badge>
-          </div>
-        )}
         <div className="absolute bottom-0 left-0 right-0 p-4">
           <h3 className="text-xl font-bold text-white mb-1">{item.name}</h3>
-          <p className="text-sm text-gray-300 line-clamp-2">{item.description}</p>
+          <p className="text-sm text-gray-300 line-clamp-2">
+            {item.description || `${item.sub_category} - Ready in ${item.preparation_time} mins`}
+          </p>
         </div>
       </div>
 
       <div className="bg-gray-900/80 backdrop-blur-xl p-4 rounded-b-2xl border border-gray-800">
         <div className="flex justify-between items-center mb-4">
-          <div>
-            <span className="text-2xl font-bold text-white">₹{item.price}</span>
-            {/* <Badge variant="secondary" className="ml-2">+{item.points} pts</Badge> */}
+          <div className="flex flex-col">
+            <span className="text-2xl font-bold text-white">₹{currentPrice}</span>
+            <span className="text-xs text-gray-400">
+              +₹{item.packaging_charge} packaging
+              {parseFloat(item.tax_percentage) > 0 && ` • ${item.tax_percentage}% tax`}
+            </span>
           </div>
           <div className="flex items-center space-x-2">
             <Button
@@ -70,18 +96,18 @@ export function MenuCard({ item, onAddToCart }: MenuCardProps) {
           </div>
         </div>
 
-        {item.variants && (
+        {Object.keys(item.variations).length > 1 && (
           <Select
-            value={variant}
-            onValueChange={setVariant}
+            value={selectedVariant}
+            onValueChange={setSelectedVariant}
           >
             <SelectTrigger className="mb-4 bg-gray-800 border-gray-700 text-white">
               <SelectValue placeholder="Select size" />
             </SelectTrigger>
             <SelectContent>
-              {item.variants.map((v) => (
-                <SelectItem key={v} value={v}>
-                  {v}
+              {Object.entries(item.variations).map(([variant, price]) => (
+                <SelectItem key={variant} value={variant}>
+                  {variant} - ₹{price}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -90,11 +116,10 @@ export function MenuCard({ item, onAddToCart }: MenuCardProps) {
 
         <Button
           className="w-full bg-purple-600 hover:bg-purple-700"
-          onClick={() => onAddToCart(item, quantity, variant)}
-          disabled={!item.available}
+          onClick={() => onAddToCart(item, quantity, selectedVariant)}
         >
           <ShoppingCart className="mr-2 h-4 w-4" />
-          Add to Cart
+          Add to Cart (₹{(totalPrice * quantity).toFixed(2)})
         </Button>
       </div>
     </motion.div>

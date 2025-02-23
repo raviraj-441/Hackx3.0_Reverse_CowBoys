@@ -40,14 +40,20 @@ export function Cart({ items, summary, onRemoveItem, onCheckout, onUpdateQuantit
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 20 }}
-            className="fixed inset-y-0 right-0 w-full md:w-96 bg-black/95 backdrop-blur-xl border-l border-purple-500/20 shadow-xl"
+            className="fixed inset-y-0 right-0 w-full md:w-96 bg-black/95 backdrop-blur-xl border-l border-purple-500/20 shadow-xl z-30"
           >
             <div className="flex flex-col h-full">
               <div className="flex justify-between items-center p-4 border-b border-purple-500/20">
                 <h2 className="text-xl font-semibold text-white">Your Order</h2>
-                <Button variant="ghost" size="icon" className='text-white hover:bg-white/10 hover:text-white' onClick={() => setIsOpen(false)}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:bg-white/10 hover:text-white absolute top-4 right-4 z-[999]"
+                  onClick={() => setIsOpen(false)}
+                >
                   <X className="h-7 w-7" />
                 </Button>
+
               </div>
 
               <ScrollArea className="flex-1 p-4">

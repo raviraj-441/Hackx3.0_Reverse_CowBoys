@@ -1,16 +1,27 @@
-//ScratchCard.tsx
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Gift, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ScratchCard as ScratchCardType } from '../types';
+
+interface BackendScratchCard {
+  name: string;
+  sku: string;
+  category: string;
+  starting_price: number;
+  total_ordered: number;
+  preparation_time: number;
+  image_url: string;
+  variations: {
+    [key: string]: number;
+  };
+}
 
 interface ScratchCardProps {
-  card: ScratchCardType;
+  card: BackendScratchCard;
   onClose: () => void;
-  onClaim: (card: ScratchCardType) => void;
+  onClaim: (card: BackendScratchCard) => void;
 }
 
 export function ScratchCard({ card, onClose, onClaim }: ScratchCardProps) {
@@ -110,10 +121,10 @@ export function ScratchCard({ card, onClose, onClaim }: ScratchCardProps) {
               className="text-center"
             >
               <h4 className="text-xl font-bold text-purple-400 mb-2">Congratulations! 🎉</h4>
-              <p className="text-gray-300 mb-4">{card.description}</p>
+              <p className="text-gray-300 mb-4">{card.name}</p>
               <div className="text-sm text-gray-400 mb-6">
-                <p>Minimum order: ₹{card.minimumOrder}</p>
-                <p>Expires in {card.expiresIn} hours</p>
+                <p>Minimum order: ₹{card.starting_price}</p>
+                <p>Preparation Time: {card.preparation_time} mins</p>
               </div>
               <Button
                 className="w-full bg-purple-600 hover:bg-purple-700"
