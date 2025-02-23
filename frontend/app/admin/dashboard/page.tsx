@@ -24,6 +24,11 @@ type SettlementData = {
   }
 }
 
+interface CompanyData {
+  created_at: string
+  sales: number
+}
+
 const salesData = [
   { name: "9AM", value: 240 },
   { name: "10AM", value: 139 },
@@ -52,13 +57,34 @@ const topWaiters = [
 
 export default function DashboardPage() {
   const [settlementData, setSettlementData] = useState<SettlementData | null>(null)
+  const [companyData, setCompanyData] = useState<CompanyData[]>([])
 
   useEffect(() => {
+    // Fetch settlement data
     fetch("http://127.0.0.1:8000/api/settlement_master")
       .then((response) => response.json())
       .then((data) => setSettlementData(data))
       .catch((error) => console.error("Error fetching settlement data:", error))
+
+    // Fetch company data
+    fetch("http://127.0.0.1:8000/api/company_data")
+      .then((response) => response.json())
+      .then((data) => setCompanyData(data))
+      .catch((error) => console.error("Error fetching company data:", error))
   }, [])
+
+  // Transform company data for the chart
+  const transformCompanyData = () => {
+    return companyData.map((entry) => ({
+      name: new Date(entry.created_at).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        hour12: true,
+        timeZone: 'UTC'
+      }),
+      value: entry.sales
+    }))
+  }
+
 
   return (
     <div className="space-y-8">
@@ -119,27 +145,43 @@ export default function DashboardPage() {
       {/* Sales Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>Today's Sales</CardTitle>
+          <CardTitle>Sales Timeline</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-[240px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={salesData}>
+              <AreaChart data={transformCompanyData()}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" padding={{ left: 0, right: 0 }} tick={{ fill: "hsl(var(--foreground))" }} />
-                <YAxis padding={{ top: 20, bottom: 0 }} tick={{ fill: "hsl(var(--foreground))" }} />
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fill: "hsl(var(--foreground))" }}
+                  padding={{ left: 20, right: 20 }}
+                />
+                <YAxis 
+                  tick={{ fill: "hsl(var(--foreground))" }}
+                  padding={{ top: 20, bottom: 0 }}
+                  tickFormatter={(value) => `$${value}`}
+                />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: "hsl(var(--background))",
                     border: "1px solid hsl(var(--border))",
                   }}
+                  formatter={(value) => [`$${value}`, 'Sales']}
                 />
-                <Area type="monotone" dataKey="value" stroke="hsl(var(--primary))" fill="hsl(var(--primary)/.2)" />
+                <Area 
+                  type="monotone" 
+                  dataKey="value" 
+                  stroke="hsl(var(--primary))" 
+                  fill="hsl(var(--primary)/.2)" 
+                  name="Sales"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </CardContent>
       </Card>
+
 
       <div className="grid gap-4 md:grid-cols-2">
         {/* Top Selling Items */}

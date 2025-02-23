@@ -32,6 +32,23 @@ class UserSchema(BaseModel):
             **data
         )
 
+class CompanyDatabase:
+    def __init__(self):
+        self.conn = psycopg2.connect(
+            dbname=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT")
+        )
+        self.cursor = self.conn.cursor(cursor_factory=RealDictCursor)
+
+    def get_company_data(self):
+        query = "SELECT * FROM company;"
+        self.cursor.execute(query)  # Execute query
+        result = self.cursor.fetchall()  # Fetch results
+        return result if result else []  # Return empty list if no data
+
 class UserDatabase:
     def __init__(self):
         self.conn = psycopg2.connect(
