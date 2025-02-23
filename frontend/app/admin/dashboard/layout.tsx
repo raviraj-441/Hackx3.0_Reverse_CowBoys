@@ -17,7 +17,7 @@ const navigation = [
   { name: "Menu", href: "/admin/dashboard/menu", icon: Menu },
   { name: "Orders", href: "/admin/dashboard/orders", icon: Package },
   { name: "Waiter", href: "/admin/dashboard/staff", icon: Users },
-  { name: "Settings", href: "/dashboard/settings", icon: Settings },
+  { name: "Settings", href: "/admin/dashboard/settings", icon: Settings },
 ];
 
 export default function DashboardLayout({

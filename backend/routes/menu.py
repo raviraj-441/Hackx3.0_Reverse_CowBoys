@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from models.menu import AddMenuItem, EditMenuItem
 from database import MenuDatabase
+from pydantic import BaseModel
 
 # Initialize FastAPI router
 router = APIRouter()
@@ -79,3 +80,44 @@ async def delete_menu_item(sku: str):
     if "⚠️" in response:
         raise HTTPException(status_code=404, detail=response)
     return {"message": response}
+
+
+class OfferItemResponse(BaseModel):
+    name: str
+    sku: str
+    category: str
+    starting_price: float
+    total_ordered: int
+    preparation_time: int
+    image_url: str
+    variations: dict
+    
+@router.get("/get_offer_item", response_model=OfferItemResponse)
+async def get_daily_promotion():
+    """Returns today's promotional item with essential details"""
+    db = MenuDatabase()
+    try:
+        item = db.get_offer_item()
+        if not item:
+            raise HTTPException(status_code=404, detail="No promotional items available today")
+        
+        # Convert Decimal to float and calculate starting price
+        variations = {k: float(v) for k, v in item['variations'].items()}
+        starting_price = min(variations.values()) if variations else 0.0
+
+        return {
+            "name": item['name'],
+            "sku": item['sku'],
+            "category": item['category'],
+            "starting_price": round(starting_price, 2),
+            "total_ordered": item['total_ordered'],
+            "preparation_time": item['preparation_time'],
+            "image_url": item['image_url'],
+            "variations": variations
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    finally:
+        db.close()
+

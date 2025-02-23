@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from routes.users import router as user_router
 from routes.menu import router as menu_router
 from routes.orders import router as order_router
+from routes.settlement import router as settlement_router
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -19,3 +20,4 @@ app.include_router(user_router, prefix="/api", tags=["Users"])
 # Include menu routes
 app.include_router(menu_router, prefix="/api", tags=["Menu"])
 app.include_router(order_router,prefix="/api",tags=["Orders"])
+app.include_router(settlement_router,prefix="/api",tags=["Settlement"])

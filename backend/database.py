@@ -174,6 +174,40 @@ class MenuDatabase:
             self.conn.rollback()
             print("Error updating menu item:", e)
             return "Error updating menu item"
+        
+    def get_offer_item(self):
+        """Returns the menu item with the least sales today for promotion"""
+        try:
+            query = """
+            WITH daily_orders AS (
+                SELECT 
+                    o_items.sku,
+                    SUM(o_items.quantity) AS total_ordered
+                FROM orders,
+                LATERAL jsonb_to_recordset(items) AS o_items(
+                    sku TEXT, 
+                    quantity INT, 
+                    price NUMERIC  -- Add this to match your JSON structure
+                )
+                WHERE created_at >= current_date
+                GROUP BY o_items.sku
+            )
+            SELECT 
+                m.*,
+                COALESCE(d.total_ordered, 0) AS total_ordered
+            FROM menu m
+            LEFT JOIN daily_orders d ON m.sku = d.sku
+            ORDER BY total_ordered ASC, m.created_at DESC
+            LIMIT 1;
+            """
+
+            self.cursor.execute(query)
+            result = self.cursor.fetchone()
+            return result  # Directly return RealDictRow
+
+        except Exception as e:
+            print("Error finding offer item:", e)
+            return None
 
 
 
@@ -321,8 +355,55 @@ GROUP BY o.id, o.created_at, o.channel_type, o.price, o.settlement_mode, o.waite
         return result
     
 
+    def get_pending_orders_with_details(self):
+        """
+        Retrieve pending orders along with SKU details (name and description).
+        
+        Returns:
+            List[Dict]: A list of dictionaries containing order_id, sku, sku_name, and sku_description.
+        """
+        try:
+            # Query to fetch pending orders and their items
+            query = """
+            WITH order_items AS (
+                SELECT
+                    o.id AS order_id,
+                    jsonb_array_elements(o.items::jsonb)->>'sku' AS sku
+                FROM orders o
+                WHERE o.status = 'Pending'
+            )
+            SELECT
+                oi.order_id,
+                oi.sku,
+                m.name AS sku_name,
+                m.description AS sku_description
+            FROM order_items oi
+            JOIN menu m ON oi.sku = m.sku;
+            """
+            self.cursor.execute(query)
+            rows = self.cursor.fetchall()
 
+            print("Raw rows from database:", rows)  # Debugging log
 
+            # Transform the result into a list of dictionaries
+            result = [
+                {
+                    "order_id": row["order_id"],
+                    "sku": row["sku"],
+                    "sku_name": row["sku_name"],
+                    "sku_description": row["sku_description"].strip() if row["sku_description"] else None
+                }
+                for row in rows
+            ]
+
+            print("Transformed result:", result)  # Debugging log
+
+            return result
+        
+        except Exception as e:
+            print("Error retrieving pending orders:", e)
+            return []
+    
     def close(self):
         self.cursor.close()
         self.conn.close()
