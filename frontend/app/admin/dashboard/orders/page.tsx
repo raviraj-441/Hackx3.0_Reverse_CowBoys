@@ -23,6 +23,7 @@ interface Order {
     name: string
     price: number
     quantity: number
+    preparation_time: number
     status: string
   }[]
   status: string
@@ -67,27 +68,29 @@ export default function OrdersPage() {
 
   const transformOrders = (data: any[]): Order[] => {
     return data.map((order) => {
-      const createdAt = new Date(order.created_at)
-      const now = new Date()
-      const elapsedMinutes = Math.abs(Math.floor((createdAt.getTime() - now.getTime()) / 60000)) // Convert milliseconds to minutes
-
+      const preparingTime = order.items.reduce(
+        (total: number, item: any) => total + (item.preparation_time || 0),
+        0
+      );
+  
       return {
         order_id: order.order_id,
         channel_type: order.channel_type,
         assigned_table: order.assigned_tables.length > 0 ? order.assigned_tables.join(", ") : "N/A",
         total_price: order.price,
-        preparing_time: elapsedMinutes,
+        preparing_time: preparingTime,
         items: order.items.map((item: any) => ({
           name: item.name,
           price: item.price,
           quantity: item.quantity,
+          preparation_time: item.preparation_time,
           status: "Pending",
         })),
         status: "Pending",
-      }
-    })
-  }
-
+      };
+    });
+  };
+  
   const determineOverallStatus = (items: Order["items"]) => {
     const uniqueStatuses = new Set(items.map((item) => item.status))
     return uniqueStatuses.size === 1 ? [...uniqueStatuses][0] : "Pending"
@@ -140,6 +143,22 @@ export default function OrdersPage() {
         >
           Refresh Orders
         </Button>
+        <Button
+      onClick={async () => {
+        try {
+          const response = await fetch("http://127.0.0.1:8000/api/toggle_company_load", {
+            method: "GET",
+          });
+          const data = await response.json();
+          console.log("Toggle Response:", data);
+        } catch (error) {
+          console.error("Error toggling company load:", error);
+        }
+      }}
+    >
+      Toggle Button
+    </Button>
+
       </div>
 
       <Card>
@@ -168,8 +187,9 @@ export default function OrdersPage() {
                       {order.items.map((item, index) => (
                         <li key={index} className="flex justify-between items-center">
                           <span>
-                            {item.name} (x{item.quantity}) - ${item.price}
+                            {item.name} (x{item.quantity}) - ${item.price} 
                           </span>
+                          <span>{item.preparation_time} min</span>
                           <Select
                             value={item.status}
                             onValueChange={(newStatus) =>

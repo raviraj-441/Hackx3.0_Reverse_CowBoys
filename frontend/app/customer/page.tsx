@@ -1,4 +1,3 @@
-// page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,24 +7,82 @@ import { MenuCard } from './components/MenuCard';
 import { Cart } from './components/Cart';
 import { RewardsPanel } from './components/RewardsPanel';
 import { ScratchCard } from './components/ScratchCard';
-import { CartItem, MenuItem, OrderSummary, RewardItem, ScratchCard as ScratchCardType } from './types';
-import { menuItems, recommendations, scratchCards, menuCategories } from './data';
+import { CartItem, MenuItem, OrderSummary, RewardItem } from './types';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 
+// Updated MenuItem interface to match backend response
+interface MenuItem {
+  id: string;
+  name: string;
+  category: string;
+  sub_category: string;
+  tax_percentage: string;
+  packaging_charge: string;
+  SKU: string;
+  variations: {
+    [key: string]: number;
+  };
+  created_at: string;
+  description: string | null;
+  image_url: string | null;
+  preparation_time: number;
+}
+
+interface BackendScratchCard {
+  name: string;
+  sku: string;
+  category: string;
+  starting_price: number;
+  total_ordered: number;
+  preparation_time: number;
+  image_url: string;
+  variations: {
+    [key: string]: number;
+  };
+}
+
 export default function CustomerPage() {
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [userPoints, setUserPoints] = useState(0);
   const [showScratchCard, setShowScratchCard] = useState(false);
-  const [currentScratchCard, setCurrentScratchCard] = useState<ScratchCardType | null>(null);
+  const [currentScratchCard, setCurrentScratchCard] = useState<BackendScratchCard | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [orders, setOrders] = useState<CartItem[][]>([]);
-  const [claimedScratchCards, setClaimedScratchCards] = useState<ScratchCardType[]>([]);
+  const [claimedScratchCards, setClaimedScratchCards] = useState<BackendScratchCard[]>([]);
 
   const { toast } = useToast();
 
+  // Fetch menu items from backend
   useEffect(() => {
+    const fetchCompanyLoadAndMenu = async () => {
+      try {
+        // Step 1: Fetch company load status
+        const loadResponse = await fetch('http://127.0.0.1:8000/api/is_company_load');
+        const loadData = await loadResponse.json();
+        const isCompanyLoad = loadData.company_load; // Boolean value (true/false)
+  
+        // Step 2: Fetch menu items
+        const menuResponse = await fetch('http://127.0.0.1:8000/api/menu-for-admin');
+        let menuData: MenuItem[] = await menuResponse.json();
+  
+        // Step 3: If company_load is true, sort menu by preparation_time (ascending)
+        if (isCompanyLoad) {
+          menuData = menuData.sort((a, b) => a.preparation_time - b.preparation_time);
+        }
+  
+        // Step 4: Set the menu items in state
+        setMenuItems(menuData);
+  
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+        setMenuItems([]); // Prevents crash in case of an error
+      }
+    };
+  
+    fetchCompanyLoadAndMenu();
     loadOrders();
     loadScratchCards();
 
@@ -34,15 +91,35 @@ export default function CustomerPage() {
     const today = new Date().toDateString();
 
     if (lastScratchCardDate !== today) {
-      const randomCard = scratchCards[Math.floor(Math.random() * scratchCards.length)];
-      setCurrentScratchCard(randomCard);
-      setShowScratchCard(true);
-      localStorage.setItem('lastScratchCardDate', today); // Store today's date to prevent multiple prompts
+      fetchScratchCard();
+      localStorage.setItem('lastScratchCardDate', today);
     }
   }, []);
 
-  const handleUpdateQuantity = (id: number, newQuantity: number) => {
-    if (newQuantity < 1) return; // Prevent negative values
+  const fetchScratchCard = async () => {
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/get_offer_item');
+      const data: BackendScratchCard = await response.json();
+      setCurrentScratchCard(data);
+      setShowScratchCard(true);
+    } catch (error) {
+      console.error('Failed to fetch scratch card:', error);
+    }
+  };
+
+  // Updated filtering logic
+  const filteredItems = menuItems.filter(item => {
+    const matchesSearch = 
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.description?.toLowerCase() || '').includes(searchQuery.toLowerCase());
+    const matchesCategory = 
+      selectedCategory === 'all' || 
+      item.category.toLowerCase() === selectedCategory.toLowerCase();
+    return matchesSearch && matchesCategory;
+  });
+
+  const handleUpdateQuantity = (id: string, newQuantity: number) => {
+    if (newQuantity < 1) return;
 
     setCartItems((prev) =>
       prev.map((item) =>
@@ -51,56 +128,31 @@ export default function CustomerPage() {
     );
   };
 
+  const handleAddToCart = (item: MenuItem, quantity: number, variant: string) => {
+    const cartItem = {
+      id: item.id,
+      name: item.name,
+      price: item.variations[variant],
+      quantity,
+      variant,
+      tax_percentage: parseFloat(item.tax_percentage),
+      packaging_charge: parseFloat(item.packaging_charge)
+    };
 
-  const orderSummary: OrderSummary = {
-    subtotal: cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
-    discount: 0,
-    total: cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
-    points: Math.floor(cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0) / 10), // 1 point per ₹10 spent
-  };
-
-
-  const filteredItems = menuItems.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
-
-  const specialItems = filteredItems.filter(item => item.category === 'specials');
-  const regularItems = filteredItems.filter(item => item.category !== 'specials');
-
-  const handleAddToCart = (item: MenuItem, quantity: number, variant?: string) => {
-    setCartItems((prev) => {
-      const existingItem = prev.find((i) => i.id === item.id && i.variant === variant);
+    setCartItems(prev => {
+      const existingItem = prev.find(i => i.id === item.id && i.variant === variant);
       if (existingItem) {
-        return prev.map((i) =>
+        return prev.map(i =>
           i.id === item.id && i.variant === variant
             ? { ...i, quantity: i.quantity + quantity }
             : i
         );
       }
-      return [...prev, { ...item, quantity, variant }];
+      return [...prev, cartItem];
     });
-
-    const itemRecommendations = recommendations[item.id];
-    if (itemRecommendations?.length) {
-      toast({
-        title: 'Would you like to add?',
-        description: itemRecommendations[0].description,
-        action: (
-          <button
-            onClick={() => handleAddToCart(itemRecommendations[0], 1)}
-            className="bg-purple-600 text-white px-3 py-1 rounded-md text-sm"
-          >
-            Add for ₹{itemRecommendations[0].price}
-          </button>
-        ),
-      });
-    }
   };
 
-  const handleRemoveFromCart = (id: number) => {
+  const handleRemoveFromCart = (id: string) => {
     setCartItems((prev) => prev.filter((item) => item.id !== id));
   };
 
@@ -112,6 +164,22 @@ export default function CustomerPage() {
         description: `You've successfully redeemed ${reward.name}`,
       });
     }
+  };
+
+  // Calculate order summary including tax and packaging
+  const orderSummary: OrderSummary = {
+    subtotal: cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    tax: cartItems.reduce((sum, item) => 
+      sum + (item.price * item.quantity * item.tax_percentage / 100), 0),
+    packaging: cartItems.reduce((sum, item) => 
+      sum + (item.packaging_charge * item.quantity), 0),
+    total: cartItems.reduce((sum, item) => 
+      sum + 
+      (item.price * item.quantity) + 
+      (item.price * item.quantity * item.tax_percentage / 100) + 
+      (item.packaging_charge * item.quantity), 
+    0),
+    points: Math.floor(cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0) / 10)
   };
 
   const saveOrder = (newOrder: CartItem[]) => {
@@ -130,12 +198,9 @@ export default function CustomerPage() {
       toast({ title: 'Cart is empty', description: 'Add items before checking out!' });
       return;
     }
-    // Save order
     saveOrder(cartItems);
-    // Assign reward points based on order value
-    const earnedPoints = Math.floor(cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0) / 10);
+    const earnedPoints = Math.floor(orderSummary.total / 10);
     setUserPoints((prev) => prev + earnedPoints);
-    // Clear cart after order
     setCartItems([]);
     toast({ title: 'Order Placed!', description: 'Your order has been added to the Orders page.' });
   };
@@ -145,35 +210,47 @@ export default function CustomerPage() {
     setClaimedScratchCards(savedScratchCards);
   };
 
-  const saveScratchCard = (card: ScratchCardType, isClaimed: boolean) => {
+  const saveScratchCard = (card: BackendScratchCard, isClaimed: boolean) => {
     let savedCards = JSON.parse(localStorage.getItem('scratchCards') || '[]');
-    // Find if the card already exists
-    const existingIndex: number = savedCards.findIndex((c: ScratchCardType) => c.id === card.id);
+    const existingIndex = savedCards.findIndex((c: BackendScratchCard) => c.sku === card.sku);
     if (existingIndex !== -1) {
-      // Update the existing scratch card status
       savedCards[existingIndex] = { ...card, claimed: isClaimed };
     } else {
-      // Add new scratch card
       savedCards.push({ ...card, claimed: isClaimed });
     }
-
     localStorage.setItem('scratchCards', JSON.stringify(savedCards));
   };
 
-  const handleClaimScratchCard = (card: ScratchCardType) => {
-    saveScratchCard(card, true); // Mark as claimed
-    setClaimedScratchCards((prev) => [...prev, { ...card, claimed: true }]);
+  const handleClaimScratchCard = (card: BackendScratchCard) => {
+    // Save the claimed scratch card to localStorage
+    const savedCards = JSON.parse(localStorage.getItem('scratchCards') || '[]');
+    const updatedCards = [...savedCards, { ...card, claimed: true }];
+    localStorage.setItem('scratchCards', JSON.stringify(updatedCards));
+  
+    // Update the claimedScratchCards state
+    setClaimedScratchCards(updatedCards);
+  
+    // Show a success toast
     toast({
       title: 'Reward Claimed!',
-      description: `${card.description} has been added to your account.`,
+      description: `${card.name} has been added to your account.`,
     });
+  
+    // Close the scratch card modal
     setShowScratchCard(false);
     setCurrentScratchCard(null);
   };
-
-  const handleCloseScratchCard = (card: ScratchCardType) => {
-    saveScratchCard(card, false); // Save as unclaimed
-    setClaimedScratchCards((prev) => [...prev, { ...card, claimed: false }]);
+  
+  const handleCloseScratchCard = (card: BackendScratchCard) => {
+    // Save the unclaimed scratch card to localStorage
+    const savedCards = JSON.parse(localStorage.getItem('scratchCards') || '[]');
+    const updatedCards = [...savedCards, { ...card, claimed: false }];
+    localStorage.setItem('scratchCards', JSON.stringify(updatedCards));
+  
+    // Update the claimedScratchCards state
+    setClaimedScratchCards(updatedCards);
+  
+    // Close the scratch card modal
     setShowScratchCard(false);
     setCurrentScratchCard(null);
   };
@@ -224,23 +301,25 @@ export default function CustomerPage() {
             <div className="flex flex-wrap gap-2 overflow-x-auto pb-2 md:pb-0">
               <button
                 onClick={() => setSelectedCategory('all')}
-                className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition-colors ${selectedCategory === 'all'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                  }`}
+                className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition-colors ${
+                  selectedCategory === 'all'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                }`}
               >
                 All Items
               </button>
-              {menuCategories.map(category => (
+              {Array.from(new Set(menuItems.map(item => item.category))).map(category => (
                 <button
-                  key={category.id}
-                  onClick={() => setSelectedCategory(category.slug)}
-                  className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition-colors ${selectedCategory === category.slug
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                    }`}
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition-colors ${
+                    selectedCategory === category
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  }`}
                 >
-                  {category.name}
+                  {category}
                 </button>
               ))}
             </div>
@@ -262,39 +341,19 @@ export default function CustomerPage() {
           </div>
         </motion.div>
 
-        {/* Menu Sections */}
-        {specialItems.length > 0 && (
-          <section className="mb-12">
-            <div className="flex items-center gap-3 mb-6">
-              <Star className="h-6 w-6 text-purple-400" />
-              <h2 className="text-2xl font-bold text-white">Today's Specials</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {specialItems.map(item => (
-                <MenuCard
-                  key={item.id}
-                  item={item}
-                  onAddToCart={handleAddToCart}
-                />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {regularItems.length > 0 && (
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold text-white mb-6">Menu</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {regularItems.map(item => (
-                <MenuCard
-                  key={item.id}
-                  item={item}
-                  onAddToCart={handleAddToCart}
-                />
-              ))}
-            </div>
-          </section>
-        )}
+        {/* Menu Grid */}
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold text-white mb-6">Menu</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredItems.map(item => (
+              <MenuCard
+                key={item.id}
+                item={item}
+                onAddToCart={handleAddToCart}
+              />
+            ))}
+          </div>
+        </section>
 
         {/* Rewards Section */}
         <section className="mb-12">
@@ -315,13 +374,12 @@ export default function CustomerPage() {
           />
         </div>
 
-
         {/* Scratch Card */}
         <AnimatePresence>
           {showScratchCard && currentScratchCard && (
             <ScratchCard
               card={currentScratchCard}
-              onClose={() => handleCloseScratchCard(currentScratchCard)} // Now saving unclaimed cards
+              onClose={() => handleCloseScratchCard(currentScratchCard)}
               onClaim={handleClaimScratchCard}
             />
           )}

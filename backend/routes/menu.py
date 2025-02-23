@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from models.menu import AddMenuItem, EditMenuItem
-from database import MenuDatabase
+from database import MenuDatabase2,MenuDatabase
 from pydantic import BaseModel
 
 # Initialize FastAPI router
@@ -95,7 +95,7 @@ class OfferItemResponse(BaseModel):
 @router.get("/get_offer_item", response_model=OfferItemResponse)
 async def get_daily_promotion():
     """Returns today's promotional item with essential details"""
-    db = MenuDatabase()
+    db = MenuDatabase2()
     try:
         item = db.get_offer_item()
         if not item:

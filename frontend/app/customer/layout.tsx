@@ -23,18 +23,18 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
 
   return (
     <div className="relative min-h-screen">
-      {/* User Profile at the Top Right /}
+      {/* User Profile at the Top Right */}
       <div className="absolute top-4 right-4">
         <UserProfile />
       </div>
 
-      {/ Navigation Bar /}
+      {/* Navigation Bar */}
       <Navbar />
 
-      {/ Main Content /}
+      {/* Main Content */}
       <main>{children}</main>
 
-      {/ Toast Notifications */}
+      {/* Toast Notifications */}
       <Toaster />
     </div>
   );

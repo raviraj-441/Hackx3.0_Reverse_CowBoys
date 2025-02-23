@@ -31,7 +31,6 @@ class UserSchema(BaseModel):
             created_at=datetime.utcnow().isoformat(),
             **data
         )
-
 class CompanyDatabase:
     def __init__(self):
         self.conn = psycopg2.connect(
@@ -63,8 +62,8 @@ class UserDatabase:
     def create_user(self, name, email, password, role="customer"):
         hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
         query = """
-        INSERT INTO employees (id, name, email, password, role, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s) RETURNING id;
+            INSERT INTO employees (id, name, email, password, role, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s) RETURNING id;
         """
         user_id = str(uuid.uuid4())
         created_at = datetime.utcnow().isoformat()
@@ -191,7 +190,19 @@ class MenuDatabase:
             self.conn.rollback()
             print("Error updating menu item:", e)
             return "Error updating menu item"
-        
+    
+    
+class MenuDatabase2:
+    def __init__(self):
+        """Initialize connection to Supabase PostgreSQL using environment variables."""
+        self.conn = psycopg2.connect(
+            dbname=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT")
+        )
+        self.cursor = self.conn.cursor(cursor_factory=RealDictCursor)
     def get_offer_item(self):
         """Returns the menu item with the least sales today for promotion"""
         try:
@@ -217,17 +228,14 @@ class MenuDatabase:
             ORDER BY total_ordered ASC, m.created_at DESC
             LIMIT 1;
             """
-
+            
             self.cursor.execute(query)
             result = self.cursor.fetchone()
             return result  # Directly return RealDictRow
-
+            
         except Exception as e:
             print("Error finding offer item:", e)
             return None
-
-
-
 
     def close(self):
         """Close database connection."""
@@ -288,12 +296,16 @@ class OrderDatabase:
 
         return round(total_price, 2)
 
+    from decimal import Decimal
+
     def create_order(self, channel_type, table_numbers, items, settlement_mode):
         """
-        Place an order and assign it to the least-burdened waiter.
+        Place an order, assign it to the least-burdened waiter (if not Takeaway), and update company sales.
         """
-        waiter_id = self.get_available_waiter()
-        if not waiter_id:
+        # Determine if a waiter is needed
+        waiter_id = None if channel_type == "Takeaway" else self.get_available_waiter()
+        
+        if channel_type != "Takeaway" and not waiter_id:
             return {"error": "No available waiters"}
 
         # Calculate the total order price
@@ -303,7 +315,7 @@ class OrderDatabase:
         table_no_json = json.dumps({"tables": table_numbers})  
         items_json = json.dumps(items)
 
-        # Insert order into `orders` table with waiter_id
+        # Insert order into `orders` table (waiter_id is NULL for Takeaway)
         order_query = """
         INSERT INTO orders (created_at, channel_type, table_no, items, price, settlement_mode, waiter_id)
         VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id;
@@ -311,36 +323,83 @@ class OrderDatabase:
         self.cursor.execute(order_query, (datetime.now(), channel_type, table_no_json, items_json, total_price, settlement_mode, waiter_id))
         order_id = self.cursor.fetchone()["id"]
 
-        # Assign waiter in `allocations` table
-        alloc_query = """
-        INSERT INTO allocations (table_no, waiter_id, created_at)
-        VALUES (%s, %s, NOW());
+        # Assign waiter in `allocations` table (Skip if Takeaway)
+        if channel_type != "Takeaway":
+            alloc_query = """
+            INSERT INTO allocations (table_no, waiter_id, created_at)
+            VALUES (%s, %s, NOW());
+            """
+            self.cursor.execute(alloc_query, (table_no_json, waiter_id))
+
+        # Get the last recorded sales value (handle NULL case)
+        self.cursor.execute("SELECT sales FROM company ORDER BY created_at DESC LIMIT 1;")
+        last_sales = self.cursor.fetchone()
+
+        # Convert Decimal to float and handle NULL case
+        last_sales_value = float(last_sales["sales"]) if last_sales and last_sales["sales"] else 0.0
+
+        # Compute new sales
+        new_sales = last_sales_value + total_price
+
+        # Insert new sales record
+        sales_update_query = """
+        INSERT INTO company (created_at, sales)
+        VALUES (NOW(), %s);
         """
-        self.cursor.execute(alloc_query, (table_no_json, waiter_id))
+        self.cursor.execute(sales_update_query, (new_sales,))
 
         self.conn.commit()
         return {"order_id": order_id, "waiter_id": waiter_id, "total_price": total_price}
+
+
+
+
     
     def get_allocations(self):
         query = """
-        SELECT a.id, a.created_at, a.table_no, a.waiter_id, e.name AS waiter_name
-        FROM allocations a
-        JOIN employees e ON a.waiter_id = e.id;
+        WITH allocation_data AS (
+            SELECT 
+                a.id AS allocation_id, 
+                a.created_at, 
+                a.table_no, 
+                a.waiter_id, 
+                e.name AS waiter_name
+            FROM allocations a
+            JOIN employees e ON a.waiter_id = e.id
+        ), order_data AS (
+            SELECT 
+                o.table_no, 
+                jsonb_array_elements(o.items) AS item
+            FROM orders o
+        ), item_data AS (
+            SELECT 
+                m.sku, 
+                m.name AS item_name
+            FROM menu m
+        )
+        SELECT 
+            ad.allocation_id, 
+            ad.created_at, 
+            ad.table_no, 
+            ad.waiter_id, 
+            ad.waiter_name, 
+            json_agg(DISTINCT jsonb_build_object(
+                'sku', i.sku, 
+                'item_name', i.item_name
+            )) FILTER (WHERE i.sku IS NOT NULL) AS ordered_items
+        FROM allocation_data ad
+        LEFT JOIN order_data od ON od.table_no @> ad.table_no
+        LEFT JOIN item_data i ON (od.item->>'sku') = i.sku
+        GROUP BY ad.allocation_id, ad.created_at, ad.table_no, ad.waiter_id, ad.waiter_name;
         """
-        self.cursor.execute(query)
 
+        self.cursor.execute(query)
         allocations = self.cursor.fetchall()
-        # return [
-        #     {
-        #         "id": row[0],
-        #         "created_at": row[1],
-        #         "table_no": row[2],  # Assuming it's stored as JSON in the DB
-        #         "waiter_id": row[3],
-        #         "waiter_name": row[4]  # Adding waiter_name to the response
-        #     }
-        #     for row in allocations
-        # ]
+
         return allocations
+
+
+
     
     def get_order_management(self):
         query = """
@@ -351,6 +410,7 @@ SELECT
     jsonb_agg(
         jsonb_build_object(
             'name', m.name,
+            'preparation_time',m.preparation_time,
             'sku', i->>'sku',
             'price', (i->>'price')::numeric,
             'quantity', (i->>'quantity')::int
